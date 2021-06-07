@@ -1,1 +1,1 @@
-# ecog2txt-ak
+# ecog2txt-pytorch
