@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/akshitark/ecog2txt-pytorch",
     packages=setuptools.find_packages(),
     package_data={
-        'ecog2txt-pytorch': [
+        'ecog2txt_pytorch': [
             'conf/block_breakdowns.json',
             'conf/mocha-1_word_sequence.yaml'
             'conf/vocab.mocha-timit.1806',
@@ -30,7 +30,8 @@ setuptools.setup(
     ],
     install_requires=[
         'numpy', 'scipy', 'matplotlib', 'pandas', 'seaborn',
-        'tikzplotlib', 'pytorch', 'hickle',
-        'python_speech_features', 'pyyaml', 'protobuf>=3.7'
+        'tikzplotlib', 'torch', 'hickle',
+        'python_speech_features', 'pyyaml', 'protobuf>=3.7',
+        'tfrecord'
     ],
 )

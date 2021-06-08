@@ -1,0 +1,13 @@
+README.md
+setup.py
+ecog2txt_pytorch/__init__.py
+ecog2txt_pytorch/dataloaders.py
+ecog2txt_pytorch/subjects.py
+ecog2txt_pytorch/train.py
+ecog2txt_pytorch.egg-info/PKG-INFO
+ecog2txt_pytorch.egg-info/SOURCES.txt
+ecog2txt_pytorch.egg-info/dependency_links.txt
+ecog2txt_pytorch.egg-info/requires.txt
+ecog2txt_pytorch.egg-info/top_level.txt
+ecog2txt_pytorch/models/__init__.py
+ecog2txt_pytorch/models/single_subject_transformer.py
