@@ -1,4 +1,4 @@
-act400:
+400:
   DataGenerator: &id001 !!python/name:ecog2txt.data_generators.ECoGDataGenerator ''
   # DataGenerator: &id001 !!python/name:ecog2txt.chang_lab_data_generators.BambooDataGenerator ''
   EMA_decay: 0.99
@@ -26,7 +26,7 @@ act400:
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 0
-  bad_electrodes_path: /Users/akshita/Documents/Research/Makin/data/ecog/EFC400/bad_electrodes
+  bad_electrodes_path: /Users/akshita/Documents/Research/Makin/data/ecog/EFC400/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
@@ -111,7 +111,7 @@ act400:
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 0
-  bad_electrodes_path: /Users/akshita/Documents/Research/Makin/data/ecog/EFC401/bad_electrodes
+  bad_electrodes_path: /Users/akshita/Documents/Research/Makin/data/ecog/EFC401/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
