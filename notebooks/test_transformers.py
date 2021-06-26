@@ -63,7 +63,7 @@ valid_dataloaders = ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, parti
 from ecog2txt_pytorch.models.single_subject_transformer import *
 #from longformer.longformer import LongformerSelfAttention, LongformerConfig
 import torch.nn.functional as F
-
+#from jgm_utils.toolbox import wer
 
 
 # longformer_config = LongformerConffg(attention_window=[WIN_SIZE] * NUM_ENCODER_LAYERS,
@@ -123,6 +123,7 @@ def train_epoch(model, train_dataloaders, optimizer):
   model.train()
   losses = 0
   cnt = 0
+  train_acc = 0
   for train_dataloader in train_dataloaders:
       for idx, (src, tgt) in enumerate(train_dataloader):
           #print('src_shape', src.shape, 'tgt_shape', tgt.shape)
@@ -137,21 +138,14 @@ def train_epoch(model, train_dataloaders, optimizer):
           logits = model(src, tgt_input, src_mask, tgt_mask,
                                     src_padding_mask, tgt_padding_mask, src_padding_mask)
 
-          #print("af model")
           optimizer.zero_grad()
-          #print("tgt out", tgt[1:, :], "tgt out shape", tgt[1:, :].shape)
           tgt_out = tgt[1:,:].type(torch.LongTensor).to(device)
 
-          #print("logits shape", logits.shape, "tgt out", tgt_out.shape)
           loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-          #print("after loss", loss)
           loss.backward()
-          #print("after loss back")
           optimizer.step()
           losses += loss.item()
-          print("iter", idx + 1, "cnt", cnt, "losses", losses)
       
-  print("cnt_ol", cnt)
   return losses / cnt
 
 
@@ -159,6 +153,7 @@ def evaluate(model, val_dataloaders):
   model.eval()
   losses = 0
   cnt = 0
+  val_accuracy = 0
   for val_dataloader in val_dataloaders:
       for idx, (src, tgt) in enumerate(val_dataloader):
         cnt += 1
@@ -171,10 +166,17 @@ def evaluate(model, val_dataloaders):
 
         logits = model(src, tgt_input, src_mask, tgt_mask,
                                   src_padding_mask, tgt_padding_mask, src_padding_mask)
+        preds = torch.argmax(logits, dim=2)
+
+
         tgt_out = tgt[1:,:].type(torch.LongTensor).to(device)
+        
+        val_accuracy += ( torch.sum(tgt_out == preds) / (preds.shape[0] * preds.shape[1]) )
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
         losses += loss.item()
-  return losses / cnt
+
+
+  return losses / cnt, val_accuracy / cnt
 
 #%%
 
@@ -183,8 +185,8 @@ for epoch in range(1, NUM_EPOCHS+1):
   start_time = time.time()
   train_loss = train_epoch(transformer, train_dataloaders, optimizer)
   end_time = time.time()
-  val_loss = evaluate(transformer, valid_dataloaders)
-  print((f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, "
+  val_loss, val_acc = evaluate(transformer, valid_dataloaders)
+  print((f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val accuracy: {val_acc:.3f}"
           f"Epoch time = {(end_time - start_time):.3f}s"))
 
 
