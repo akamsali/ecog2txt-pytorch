@@ -38,13 +38,13 @@ class Seq2SeqTransformer(nn.Module):
         src_emb = self.positional_encoding(src)
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg))
 
-        print('src_emb_shape: ', src_emb.shape,'tgt_emb_shape: ',tgt_emb.shape ,'src_mask_shape: ',
-              src_mask.shape, 'src_pad_shape: ',src_padding_mask.shape)
+        #print('src_emb_shape: ', src_emb.shape,'tgt_emb_shape: ',tgt_emb.shape ,'src_mask_shape: ',
+        #      src_mask.shape, 'src_pad_shape: ',src_padding_mask.shape)
         memory = self.transformer_encoder(src_emb, src_mask)
-        print("here af tr enc")
+        #print("here af tr enc")
         outs = self.transformer_decoder(tgt_emb, memory, tgt_mask, None,
                                         tgt_padding_mask, memory_key_padding_mask)
-        print("here af tr dec")
+        #print("here af tr dec")
 
         return self.generator(outs)
 
@@ -81,7 +81,7 @@ class TokenEmbedding(nn.Module):
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
     def forward(self, tokens: Tensor):
-        print('tokens shape: ', tokens.shape)
+        #print('tokens shape: ', tokens.shape)
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
