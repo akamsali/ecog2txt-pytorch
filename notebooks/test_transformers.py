@@ -8,9 +8,9 @@ import json
 #%%
 
 subject_id = "400"
-tfrecord_path="/Users/akshita/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC400/{}.tfrecord"
-block_config_path="/Users/akshita/Documents/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json"
-manifest_path="/Users/akshita/Documents/Research/Makin/ecog2txt-pytorch/conf/mocha-1_word_sequence.yaml"
+tfrecord_path="/scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC400"
+block_config_path="/scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json"
+manifest_path="/scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/mocha-1_word_sequence.yaml"
 
 #%%
 
@@ -32,14 +32,14 @@ num_channels = data_generator.num_ECoG_channels
 
 from ecog2txt_pytorch.vocabulary import Vocabulary
 
-word_seq_vocabulary = Vocabulary("/Users/akshita/Documents/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806")
+word_seq_vocabulary = Vocabulary("/scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806")
 SRC_VOCAB_SIZE = num_channels
 TGT_VOCAB_SIZE = len(word_seq_vocabulary.words_ind_map)
 EMB_SIZE = num_channels
 PAD_IDX = word_seq_vocabulary.words_ind_map['<pad>']
 #print("pad_idx", PAD_IDX)
 EOS_IDX = word_seq_vocabulary.words_ind_map['<EOS>']
-BATCH_SIZE = 1
+BATCH_SIZE = 16
 
 WIN_SIZE = 1
 
@@ -54,19 +54,19 @@ ecog = EcogDataLoader(tfrecord_path, block_config_all[subject_id],
 #print(ecog.get_data_loader_for_blocks())
 
 
-train_iter = iter(ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='training'))
-test_iter = iter(ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='extra'))
-valid_iter = iter(ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='validation'))
+train_dataloaders = ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='training')
+test_dataloaders = ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='extra')
+valid_dataloaders = ecog.get_data_loader_for_blocks(batch_size=BATCH_SIZE, partition_type='validation')
 
 #%%
 
 from ecog2txt_pytorch.models.single_subject_transformer import *
-from longformer.longformer import LongformerSelfAttention, LongformerConfig
+#from longformer.longformer import LongformerSelfAttention, LongformerConfig
 import torch.nn.functional as F
 
 
 
-# longformer_config = LongformerConfig(attention_window=[WIN_SIZE] * NUM_ENCODER_LAYERS,
+# longformer_config = LongformerConffg(attention_window=[WIN_SIZE] * NUM_ENCODER_LAYERS,
 #  attention_dilation=[1] * NUM_ENCODER_LAYERS,
 #  hidden_size=EMB_SIZE,
 #  num_attention_heads=NHEAD)
@@ -115,67 +115,75 @@ def create_mask(src, tgt):
   # src_mask = src_mask.float().masked_fill(src_mask == 0, float('-inf')).masked_fill(src_mask == 1, float(0.0))
 
   #print("src shape", src.shape)
-  src_padding_mask = torch.zeros(src.shape[:-1]).transpose(0, 1)
+  src_padding_mask = torch.zeros(src.shape[:-1], device=device).transpose(0, 1)
   tgt_padding_mask = (tgt == PAD_IDX).transpose(0, 1)
   return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
 
-def train_epoch(model, train_iter, optimizer):
+def train_epoch(model, train_dataloaders, optimizer):
   model.train()
   losses = 0
-  for idx, (src, tgt) in enumerate(train_iter):
-      #print('src_shape', src.shape, 'tgt_shape', tgt.shape)
-      src = src.to(device)
-      tgt = tgt.to(device)
+  cnt = 0
+  for train_dataloader in train_dataloaders:
+      for idx, (src, tgt) in enumerate(train_dataloader):
+          #print('src_shape', src.shape, 'tgt_shape', tgt.shape)
+          cnt += 1
+          src = src.to(device)
+          tgt = tgt.to(device)
 
-      tgt_input = tgt[:-1, :]
+          tgt_input = tgt[:-1, :]
 
-      src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input)
+          src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input)
 
-      logits = model(src, tgt_input, src_mask, tgt_mask,
-                                src_padding_mask, tgt_padding_mask, src_padding_mask)
+          logits = model(src, tgt_input, src_mask, tgt_mask,
+                                    src_padding_mask, tgt_padding_mask, src_padding_mask)
 
-      #print("af model")
-      optimizer.zero_grad()
-      #print("tgt out", tgt[1:, :], "tgt out shape", tgt[1:, :].shape)
-      tgt_out = tgt[1:,:].type(torch.LongTensor)
+          #print("af model")
+          optimizer.zero_grad()
+          #print("tgt out", tgt[1:, :], "tgt out shape", tgt[1:, :].shape)
+          tgt_out = tgt[1:,:].type(torch.LongTensor).to(device)
 
-      #print("logits shape", logits.shape, "tgt out", tgt_out.shape)
-      loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-      #print("after loss", loss)
-      loss.backward()
-      #print("after loss back")
-      optimizer.step()
-      losses += loss.item()
-      print("losses", losses)
-  return losses / len(train_iter)
+          #print("logits shape", logits.shape, "tgt out", tgt_out.shape)
+          loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+          #print("after loss", loss)
+          loss.backward()
+          #print("after loss back")
+          optimizer.step()
+          losses += loss.item()
+          print("iter", idx + 1, "cnt", cnt, "losses", losses)
+      
+  print("cnt_ol", cnt)
+  return losses / cnt
 
 
-def evaluate(model, val_iter):
+def evaluate(model, val_dataloaders):
   model.eval()
   losses = 0
-  for idx, (src, tgt) in (enumerate(valid_iter)):
-    src = src.to(device)
-    tgt = tgt.to(device)
+  cnt = 0
+  for val_dataloader in val_dataloaders:
+      for idx, (src, tgt) in enumerate(val_dataloader):
+        cnt += 1
+        src = src.to(device)
+        tgt = tgt.to(device)
 
-    tgt_input = tgt[:-1, :]
+        tgt_input = tgt[:-1, :]
 
-    src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input)
+        src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input)
 
-    logits = model(src, tgt_input, src_mask, tgt_mask,
-                              src_padding_mask, tgt_padding_mask, src_padding_mask)
-    tgt_out = tgt[1:,:].type(torch.LongTensor)
-    loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-    losses += loss.item()
-  return losses / len(val_iter)
+        logits = model(src, tgt_input, src_mask, tgt_mask,
+                                  src_padding_mask, tgt_padding_mask, src_padding_mask)
+        tgt_out = tgt[1:,:].type(torch.LongTensor).to(device)
+        loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        losses += loss.item()
+  return losses / cnt
 
 #%%
 
 import time
 for epoch in range(1, NUM_EPOCHS+1):
   start_time = time.time()
-  train_loss = train_epoch(transformer, train_iter, optimizer)
+  train_loss = train_epoch(transformer, train_dataloaders, optimizer)
   end_time = time.time()
-  val_loss = evaluate(transformer, valid_iter)
+  val_loss = evaluate(transformer, valid_dataloaders)
   print((f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, "
           f"Epoch time = {(end_time - start_time):.3f}s"))
 
