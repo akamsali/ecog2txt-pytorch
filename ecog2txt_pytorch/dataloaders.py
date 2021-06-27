@@ -33,12 +33,12 @@ class EcogDataLoader:
         filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord",
                                    filter(lambda x: x[1]["default_dataset"] == partition_type,
                                           self.block_config.items())))
-
-        dataloaders = []
+        print("partition_type", partition_type, "filtered_files", filtered_files)
+        datasets = []
         for f in filtered_files:
           dataset = TFRecordDataset(f, self.index_path, self.description,
                                        transform=self.transform_fn)
-
-          dataloaders.append(tdata.DataLoader(dataset, batch_size=batch_size, collate_fn=self.pad_collate))
+          datasets.append(dataset)
         
-        return dataloaders
+        concat_dataset = tdata.ChainDataset(datasets)
+        return tdata.DataLoader(concat_dataset, batch_size=batch_size, collate_fn=self.pad_collate)
