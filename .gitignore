@@ -142,3 +142,6 @@ conf/
 
 # wandb directory
 wandb/
+
+# DS_Store
+.DS_Store
