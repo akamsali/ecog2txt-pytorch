@@ -10,7 +10,6 @@ class EcogDataLoader:
                  tfrecord_path,
                  block_config,
                  subject_id,
-                 data_generator,
                  config_obj,
                  index_path=None,
                  description=None
@@ -18,7 +17,7 @@ class EcogDataLoader:
         self.tfrecord_path = tfrecord_path
         self.block_config = block_config
         self.subject_id = subject_id
-        self.num_ECoG_channels = self.get_num_ecog_channels(config_obj, subject_id, data_generator)
+        self.num_ECoG_channels = self.get_num_ecog_channels(config_obj, subject_id, config_obj['DataGenerator'])
         self.index_path = index_path
         self.description = description
 
@@ -32,6 +31,7 @@ class EcogDataLoader:
         return record
 
     def pad_collate(self, batch):
+        print(len(batch))
         x = (pad_sequence([torch.tensor(item[key]) for item in batch]) for key in ['ecog_sequence', 'text_sequence'])
         return x
 

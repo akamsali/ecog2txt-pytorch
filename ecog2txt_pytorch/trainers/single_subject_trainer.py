@@ -2,6 +2,7 @@ from ecog2txt_pytorch.models.transformer import *
 from ecog2txt_pytorch.dataloaders import EcogDataLoader
 from ecog2txt_pytorch.vocabulary import Vocabulary
 from ecog2txt_pytorch.utils.mask import *
+from ecog2txt.data_generators import ECoGDataGenerator
 
 from utils_jgm.toolbox import wer_vector
 
@@ -23,6 +24,9 @@ class SingleSubjectTrainer:
         self.model = manifest_model(**manifest_model_args, **self.vocab_params).to(device)
 
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=self.pad_idx)
+        
+        self.manifest['optimizer']['eps'] = float(self.manifest['optimizer']['eps'])
+        self.manifest['optimizer']['betas'] = [float(i) for i in self.manifest['optimizer']['betas']]
         self.optimizer = torch.optim.Adam(self.model.parameters(), **self.manifest['optimizer'])
 
         for p in self.model.parameters():
@@ -32,17 +36,17 @@ class SingleSubjectTrainer:
     def setup(self, subject_id, manifest_path):
         with open(manifest_path, "r") as f:
             manifest_file = yaml.load(f)
-            self.manifest = manifest_file[int(subject_id)]
-
-        block_config_path = self.manifest['data']['block_config_path']
-        data_path = self.manifest['data']['data_path']
-        vocab_path = self.manifest['data']['vocab_path']
+            self.manifest = manifest_file[int(subject_id)]            
+        
+        block_config_path = (self.manifest['data'])['block_config_path']
+        data_path = (self.manifest['data'])['data_path']
+        vocab_path = (self.manifest['data'])['vocab_path']
 
         with open(block_config_path) as bf:
             block_config_all = json.load(bf)
 
         ecog = EcogDataLoader(data_path, block_config_all[subject_id],
-                              subject_id, self.manifest, self.manifest.data['description'])
+                              subject_id, self.manifest, description=self.manifest['data']['description'])
 
         vocabulary = Vocabulary(vocab_path)
         self.vocab_params = {'src_vocab_size': ecog.num_ECoG_channels,
@@ -50,15 +54,15 @@ class SingleSubjectTrainer:
                              'emb_size': ecog.num_ECoG_channels,
                              }
         self.pad_idx = vocabulary.words_ind_map['<pad>']
-
+        # no extra files present in EFC400. Change validation to extra if present 
         self.dataloaders = {'train_dataloader':
-                                ecog.get_data_loader_for_blocks(batch_size=self.manifest.training['batch_size'],
+                                ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
                                                                 partition_type='training'),
                             'test_dataloader':
-                                ecog.get_data_loader_for_blocks(batch_size=self.manifest.training['batch_size'],
-                                                                partition_type='extra'),
+                                ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+                                                                partition_type='validation'),
                             'val_dataloader':
-                                ecog.get_data_loader_for_blocks(batch_size=self.manifest.training['batch_size'],
+                                ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
                                                                 partition_type='validation')
                             }
 
@@ -66,6 +70,7 @@ class SingleSubjectTrainer:
         self.model.train()
         losses = 0
         cnt = 0
+        
         for idx, (src, tgt) in enumerate(self.dataloaders['train_dataloader']):
             cnt += 1
             src = src.to(self.device)
@@ -117,10 +122,10 @@ class SingleSubjectTrainer:
         return losses / cnt, val_accuracy / cnt
 
     def train_and_evaluate(self):
-        wandb.init(project='ecog2txt-pytorch', entity='akamsali')
+        #wandb.init(project='ecog2txt-pytorch', entity='akamsali')
 
         # Magic
-        wandb.watch(self.model, log_freq=1)
+        #wandb.watch(self.model, log_freq=1)
 
         best_val_loss = 10000
         output_dir = self.manifest['training']['output_dir']
@@ -136,4 +141,4 @@ class SingleSubjectTrainer:
             print(
                 (f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val accuracy: {val_acc:.3f}"
                  f"Epoch time = {(end_time - start_time):.3f}s"))
-            wandb.log({"train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})
+            #wandb.log({"train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})

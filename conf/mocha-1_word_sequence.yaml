@@ -52,20 +52,33 @@
   - 16
   grid_step: 1
   json_dir: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-ak/conf
-  layer_sizes:
-    decoder_embedding:
-    - 150
-    decoder_projection: []
-    decoder_rnn:
-    - 800
-    encoder_1_projection:
-    - 225
-    encoder_embedding:
-    - 100
-    encoder_rnn:
-    - 400
-    - 400
-    - 400
+  model: !!python/name:ecog2txt_pytorch.models.transformer.Transformer
+  model_args:
+    Transformer:
+      num_encoder_layers: 3
+      num_decoder_layers: 3
+      dim_feedforward: 512
+      dropout: 0.1
+      nhead: 8
+  optimizer:
+    lr: 0.0001
+    betas:
+    - 0.9
+    - 0.98
+    eps: 1e-9
+  data:
+    block_config_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
+    data_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC400
+    vocab_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
+    description:
+      audio_sequence: float
+      ecog_sequence: float
+      text_sequence: byte
+      phoneme_sequence: byte
+  training:
+    batch_size: 8
+    num_epochs: 500
+    output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
   num_cepstral_coeffs: 0
