@@ -32,6 +32,6 @@ setuptools.setup(
         'numpy', 'scipy', 'matplotlib', 'pandas', 'seaborn',
         'tikzplotlib', 'torch', 'hickle',
         'python_speech_features', 'pyyaml', 'protobuf>=3.7',
-        'tfrecord'
+        'tfrecord', 'tfrecord_lite', 'wandb',
     ],
 )

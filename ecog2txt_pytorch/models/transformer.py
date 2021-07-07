@@ -5,30 +5,22 @@ from torch.nn import (TransformerEncoder, TransformerDecoder,
 
 import math
 
-
-NHEAD = 8
-FFN_HID_DIM = 512
-NUM_ENCODER_LAYERS = 3
-NUM_DECODER_LAYERS = 3
-NUM_EPOCHS = 500
-
-
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-class Seq2SeqTransformer(nn.Module):
+class Transformer(nn.Module):
     def __init__(self, num_encoder_layers: int, num_decoder_layers: int,
                  emb_size: int, src_vocab_size: int, tgt_vocab_size: int,
-                 dim_feedforward:int = 512, dropout:float = 0.1):
-        super(Seq2SeqTransformer, self).__init__()
-        encoder_layer = TransformerEncoderLayer(d_model=emb_size, nhead=NHEAD,
+                 dim_feedforward:int = 512, dropout:float = 0.1, nhead: int = 8):
+        super(Transformer, self).__init__()
+        encoder_layer = TransformerEncoderLayer(d_model=emb_size, nhead=nhead,
                                                 dim_feedforward=dim_feedforward)
         self.transformer_encoder = TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
-        decoder_layer = TransformerDecoderLayer(d_model=emb_size, nhead=NHEAD,
+        decoder_layer = TransformerDecoderLayer(d_model=emb_size, nhead=nhead,
                                                 dim_feedforward=dim_feedforward)
         self.transformer_decoder = TransformerDecoder(decoder_layer, num_layers=num_decoder_layers)
 
         self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        #self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
+        # self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
         self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
         self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
 
