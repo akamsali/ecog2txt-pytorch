@@ -44,16 +44,20 @@ class SingleSubjectTrainer:
 
         with open(block_config_path) as bf:
             block_config_all = json.load(bf)
-
-        ecog = EcogDataLoader(data_path, block_config_all[subject_id],
-                              subject_id, self.manifest, description=self.manifest['data']['description'])
-
+        
         vocabulary = Vocabulary(vocab_path)
+        
+        ecog = EcogDataLoader(data_path, block_config_all[subject_id],
+                              subject_id, self.manifest, vocabulary, description=self.manifest['data']['description'])
+        
         self.vocab_params = {'src_vocab_size': ecog.num_ECoG_channels,
                              'tgt_vocab_size': len(vocabulary.words_ind_map),
                              'emb_size': ecog.num_ECoG_channels,
                              }
+        
         self.pad_idx = vocabulary.words_ind_map['<pad>']
+
+        
         # no extra files present in EFC400. Change validation to extra if present 
         self.dataloaders = {'train_dataloader':
                                 ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
@@ -78,7 +82,7 @@ class SingleSubjectTrainer:
 
             tgt_input = tgt[:-1, :]
 
-            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input, self.device)
+            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input, self.pad_idx, self.device)
 
             logits = self.model(src, tgt_input, src_mask, tgt_mask,
                                 src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -104,7 +108,7 @@ class SingleSubjectTrainer:
 
             tgt_input = tgt[:-1, :]
 
-            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input)
+            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, tgt_input,self.pad_idx, self.device)
 
             logits = self.model(src, tgt_input, src_mask, tgt_mask,
                                 src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -122,10 +126,10 @@ class SingleSubjectTrainer:
         return losses / cnt, val_accuracy / cnt
 
     def train_and_evaluate(self):
-        #wandb.init(project='ecog2txt-pytorch', entity='akamsali')
+        wandb.init(project='ecog2txt-pytorch', entity='akamsali')
 
         # Magic
-        #wandb.watch(self.model, log_freq=1)
+        wandb.watch(self.model, log_freq=1)
 
         best_val_loss = 10000
         output_dir = self.manifest['training']['output_dir']
@@ -140,5 +144,5 @@ class SingleSubjectTrainer:
 
             print(
                 (f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val accuracy: {val_acc:.3f}"
-                 f"Epoch time = {(end_time - start_time):.3f}s"))
-            #wandb.log({"train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})
+                 f" Epoch time = {(end_time - start_time):.3f}s"))
+            wandb.log({"train_loss": train_loss, "val_loss": val_loss, "val_acc": val_acc})

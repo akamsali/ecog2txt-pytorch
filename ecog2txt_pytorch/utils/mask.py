@@ -10,7 +10,7 @@ def create_mask(src, tgt, pad_idx, device):
     src_seq_len = src.shape[0]
     tgt_seq_len = tgt.shape[0]
 
-    tgt_mask = generate_square_subsequent_mask(tgt_seq_len)
+    tgt_mask = generate_square_subsequent_mask(tgt_seq_len, device)
     src_mask = torch.zeros((src_seq_len, src_seq_len), device=device)
     # making a mask with sliding window centred around i
     # ind_src = torch.arange(src_seq_len+WIN_SIZE-1, dtype=torch.int64).unfold(0,WIN_SIZE,1) - WIN_SIZE/2
