@@ -1,5 +1,6 @@
 import torch
 import torch.utils.data as tdata
+import numpy as np
 from tfrecord.torch.dataset import TFRecordDataset
 from torch.nn.utils.rnn import pad_sequence
 from tfrecord_lite import tf_record_iterator
@@ -28,20 +29,22 @@ class EcogDataLoader:
         return data_generator_obj.num_ECoG_channels
 
     def transform_fn(self, record):
-        # Reshapes the ecog sequence to (len_ecog_sequence , num_channels)
+        # Reshapes the ecog sequence to (len_ecog_sequence , num_channels) 
+        # print('ecog_len', len(record['ecog_sequence']))
         record['ecog_sequence'] = record['ecog_sequence'].reshape(-1, self.num_ECoG_channels)
+        
         return record
 
     def pad_collate(self, batch):
         # print([item['text_sequence'] for item in batch])
         # print("test", ([torch.tensor(item['text_sequence']) for item in batch]))
-        x = (pad_sequence([torch.tensor(item[key]) for item in batch]) for key in ['ecog_sequence', 'text_sequence'])
-        return x
+        return (pad_sequence([torch.tensor(item[key]) for item in batch], batch_first=True) for key in ['ecog_sequence', 'text_sequence'])
+        
 
     def convert_to_str(self, record):
         word_ind_map_dict = self.vocabulary.words_ind_map
         # record['text_sequence'] = list(map(lambda y: y.decode(), record['text_sequence']))
-        record['text_sequence'] = list(map(lambda y: word_ind_map_dict[y.decode()] if y.decode() in word_ind_map_dict else word_ind_map_dict['<OOV>'], record['text_sequence']))
+        record['text_sequence'] = list(map(lambda y: float(word_ind_map_dict[y.decode()]) if y.decode() in word_ind_map_dict else word_ind_map_dict['<OOV>'], record['text_sequence']))
         # print("text_sequence as list: ",record['text_sequence'])
         return self.transform_fn(record)
 

@@ -6,10 +6,11 @@ def generate_square_subsequent_mask(sz, device):
     return mask
 
 
-def create_mask(src, tgt, pad_idx, device):
-    src_seq_len = src.shape[0]
+def create_mask(src, kernel_size, tgt, pad_idx, device):
+    src_seq_len = src.shape[1] - kernel_size + 1
     tgt_seq_len = tgt.shape[0]
-
+#     print('tgt: ',tgt.shape)
+#     print('src_seq_len: ', src_seq_len)
     tgt_mask = generate_square_subsequent_mask(tgt_seq_len, device)
     src_mask = torch.zeros((src_seq_len, src_seq_len), device=device)
     # making a mask with sliding window centred around i
@@ -21,7 +22,9 @@ def create_mask(src, tgt, pad_idx, device):
     # print('SRC_MASK', src_mask, 'SRC_mask_shape', src_mask.shape)
     # src_mask = src_mask.float().masked_fill(src_mask == 0, float('-inf')).masked_fill(src_mask == 1, float(0.0))
 
-    # print("src shape", src.shape)
-    src_padding_mask = torch.zeros(src.shape[:-1], device=device).transpose(0, 1)
+#     print("src_mask shape: ", src_mask.shape)
+    src_padding_mask = torch.zeros(src.shape[0], src_seq_len, device=device)
+#     print('src_padding_mask', src_padding_mask.shape)
     tgt_padding_mask = (tgt == pad_idx).transpose(0, 1)
+#     print('tgt_padding_mask: ', tgt_padding_mask.shape)
     return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask

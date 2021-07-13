@@ -2,16 +2,17 @@ import torch
 from torch import nn, Tensor
 from torch.nn import (TransformerEncoder, TransformerDecoder,
                       TransformerEncoderLayer, TransformerDecoderLayer)
-
 import math
+
+
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class Transformer(nn.Module):
     def __init__(self, num_encoder_layers: int, num_decoder_layers: int,
-                 emb_size: int, src_vocab_size: int, tgt_vocab_size: int,
-                 dim_feedforward:int = 512, dropout:float = 0.1, nhead: int = 8):
+                 emb_size: int, src_vocab_size: int, tgt_vocab_size: int, num_out_channels: int, kernel_size: int, dim_feedforward:int = 512, dropout:float = 0.1, nhead: int = 8):
         super(Transformer, self).__init__()
+        self.conv_layer = torch.nn.Conv1d(in_channels=src_vocab_size, out_channels=emb_size, kernel_size=kernel_size)
         encoder_layer = TransformerEncoderLayer(d_model=emb_size, nhead=nhead,
                                                 dim_feedforward=dim_feedforward)
         self.transformer_encoder = TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
@@ -27,7 +28,12 @@ class Transformer(nn.Module):
     def forward(self, src: Tensor, trg: Tensor, src_mask: Tensor,
                 tgt_mask: Tensor, src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
-        src_emb = self.positional_encoding(src)
+#         print('src shape: ', src.shape)
+        src = src.transpose(-2, -1)
+#         print('src shape transposed: ', src.shape)
+        src_conv = self.conv_layer(src)
+#         print('src_conv_to_encoder', src_conv.transpose(1, 2).transpose(0,1).shape)
+        src_emb = self.positional_encoding(src_conv.transpose(1, 2).transpose(0,1))
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(trg))
 
         #print('src_emb_shape: ', src_emb.shape,'tgt_emb_shape: ',tgt_emb.shape ,'src_mask_shape: ',

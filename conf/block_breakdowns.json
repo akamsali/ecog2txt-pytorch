@@ -43,7 +43,7 @@
 		"87": {"type": "mocha-1", "default_dataset": "testing"}
 	},
 	"402": {
-		"3": {"type": "demo_2_sentences", "default_dataset": "training"},
+		"3": {"type": "demo_2_sentences", "default_dataset": "extra"},
 		"4": {"type": "picture_description_reduced", "default_dataset": "training"},
 		"5": {"type": "picture_description_reduced", "default_dataset": "training"},
 		"6": {"type": "picture_description_reduced", "default_dataset": "training"},
