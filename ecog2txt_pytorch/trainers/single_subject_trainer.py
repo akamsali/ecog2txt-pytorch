@@ -144,12 +144,14 @@ class SingleSubjectTrainer:
             return losses / cnt, val_wer / cnt
 
     def train_and_evaluate(self):
-        wandb.init(project='ecog2txt-pytorch', entity='akamsali')
+#         wandb.init(project='ecog2txt-pytorch', entity='akamsali')
 
             # Magic
-        wandb.watch(self.model, log_freq=1)
+#         wandb.watch(self.model, log_freq=1)
+        metrics = {}
         loo = LeaveOneOut()
         for ind, (train_split, val_split) in enumerate(loo.split(self.block_config)):
+            block_left_out = ind
             self.dataloaders = {'train_dataloader':
                                     self.ecog.get_data_loader_for_blocks(split=train_split,
                                         batch_size=self.manifest['training']['batch_size']),
@@ -159,13 +161,13 @@ class SingleSubjectTrainer:
                                 }
 
             reset_weights(self.model)
-            print(f"Running {ind+1} of {len(self.block_config)} splits")
+            print(f"block_{ind+1}:")
             
             # best_val_loss = 10000
             #output_dir = self.manifest['training']['output_dir']
             
             best_val_loss = 100000
-            metrics = []
+            metrics[block_left_out] = {'train_loss': [], 'val_loss': [], 'val_WER' : []} 
             for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
                 #start_time = time.time()
                 train_loss = self.train_epoch()
@@ -176,13 +178,12 @@ class SingleSubjectTrainer:
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
                     
-                metrics_to_log = {}
-                metrics_to_log['train_loss: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = train_loss
-                metrics_to_log['val_loss: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = val_loss
-                metrics_to_log['val WER: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = val_wer
-                print(metrics_to_log)
-                wandb.log(metrics_to_log)
-                
+                metrics[block_left_out]['train_loss'].append(train_loss)
+                metrics[block_left_out]['val_loss'].append(val_loss)
+                metrics[block_left_out]['val_WER'].append(val_wer)
+                print(f"epoch_{epoch}: {metrics[block_left_out]},")
+        return metrics 
+#                 wandb.log(metrics_to_log)
                     
 #                     torch.save(self.model.state_dict(), output_dir + 'best_model.pt')
 #                 print(
