@@ -50,18 +50,13 @@ class EcogDataLoader:
         # print("text_sequence as list: ",record['text_sequence'])
         return self.transform_fn(record)
 
-    def get_data_loader_for_blocks(self, batch_size=1, partition_type='training', mode='mem', loo_split=None):
-
-        if loo_split == None:
-            filtered_files = list(
-                map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord",
-                    filter(lambda x: x[1]["default_dataset"] == partition_type,
-                           self.block_config.items())))
-        else:
-            filtered_files = list(
-                map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" +
-                              list(self.block_config)[y] + ".tfrecord", loo_split))
-            print(filtered_files)
+    def get_data_loader_for_blocks(self, split, batch_size=1, mode='mem'):
+        
+        filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + list(self.block_config)[y] + ".tfrecord", split))
+#         print(filtered_files)
+            
+#             filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
+            
 
         if mode == 'disk':
             # print("partition_type", partition_type, "filtered_files", filtered_files)

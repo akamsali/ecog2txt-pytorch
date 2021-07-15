@@ -5,13 +5,14 @@ from ecog2txt_pytorch.utils.mask import *
 from ecog2txt_pytorch.utils.training_utils import reset_weights
 
 from utils_jgm.toolbox import wer_vector
+from ecog2txt.data_generators import ECoGDataGenerator
 
 import torch
 import yaml
 import json
 import time
 from sklearn.model_selection import LeaveOneOut
-# import wandb
+import wandb
 
 
 class SingleSubjectTrainer:
@@ -31,9 +32,10 @@ class SingleSubjectTrainer:
                 nn.init.xavier_uniform_(p)
 
     def setup(self, subject_id, manifest_path):
+        self.subject_id = subject_id
         with open(manifest_path, "r") as f:
             manifest_file = yaml.load(f)
-            self.manifest = manifest_file[int(subject_id)]
+            self.manifest = manifest_file[int(self.subject_id)]
 
         block_config_path = (self.manifest['data'])['block_config_path']
         data_path = (self.manifest['data'])['data_path']
@@ -44,7 +46,7 @@ class SingleSubjectTrainer:
 
         vocabulary = Vocabulary(vocab_path)
 
-        self.block_config = block_config_all[subject_id]
+        self.block_config = block_config_all[self.subject_id]
         self.ecog = EcogDataLoader(data_path, self.block_config,
                                    subject_id, self.manifest, vocabulary,
                                    description=self.manifest['data']['description'])
@@ -59,16 +61,16 @@ class SingleSubjectTrainer:
         self.pad_idx = vocabulary.words_ind_map['<pad>']
 
         # no extra files present in EFC400. Change validation to extra if present 
-        # self.dataloaders = {'train_dataloader':
-        #                         ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                         partition_type='training'),
-        #                     'test_dataloader':
-        #                         ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                         partition_type='validation'),
-        #                     'val_dataloader':
-        #                         ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                         partition_type='validation')
-        #                     }
+#         self.dataloaders = {'train_dataloader':
+#                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+#                                                                 partition_type='training'),
+#                             'test_dataloader':
+#                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+#                                                                 partition_type='validation'),
+#                             'val_dataloader':
+#                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+#                                                                 partition_type='validation')
+#                             }
 
         self.model = manifest_model(**self.manifest_model_args, **self.vocab_params).to(device)
 
@@ -101,78 +103,88 @@ class SingleSubjectTrainer:
 
     def evaluate(self):
         self.model.eval()
-        losses = 0.0
-        cnt = 0.0
-        val_wer = 0.0
-        for idx, (src, tgt) in enumerate(self.dataloaders['val_dataloader']):
-            cnt += 1
-            src = src.to(self.device)
-            tgt = tgt.transpose(0, 1).to(self.device)
+        with torch.no_grad():
+            losses = 0.0
+            cnt = 0.0
+            val_wer = 0.0
+            for idx, (src, tgt) in enumerate(self.dataloaders['val_dataloader']):
+                cnt += 1
+                src = src.to(self.device)
+                tgt = tgt.transpose(0, 1).to(self.device)
 
-            tgt_input = tgt[:-1, :]
+                tgt_input = tgt[:-1, :]
 
-            src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, self.manifest_model_args[
-                'kernel_size'], tgt_input, self.pad_idx, self.device)
+                src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, self.manifest_model_args[
+                    'kernel_size'], tgt_input, self.pad_idx, self.device)
 
-            logits = self.model(src, tgt_input, src_mask, tgt_mask,
-                                src_padding_mask, tgt_padding_mask, src_padding_mask)
-            preds = torch.argmax(logits, dim=2)
+                logits = self.model(src, tgt_input, src_mask, tgt_mask,
+                                    src_padding_mask, tgt_padding_mask, src_padding_mask)
+                preds = torch.argmax(logits, dim=2)
 
-            tgt_out = tgt[1:, :].type(torch.LongTensor).to(device)
+                tgt_out = tgt[1:, :].type(torch.LongTensor).to(device)
 
-            pred_words = preds.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
-            target_words = tgt_out.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
+                pred_words = preds.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
+                target_words = tgt_out.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
 
-            #             print("target: ", target_words)
-            #             print("pred: ", pred_words)
-            #             print("matched: ", target_words[target_words==pred_words])
-            #             print("matched_shape: ", (target_words[target_words==pred_words]).shape)
+                #             print("target: ", target_words)
+                #             print("pred: ", pred_words)
+                #             print("matched: ", target_words[target_words==pred_words])
+                #             print("matched_shape: ", (target_words[target_words==pred_words]).shape)
 
-            target_words_zero_count = list(map(lambda y: y.count('0'), target_words))
-            # print('tgt_zero_count', target_words_zero_count)
-            target_zero_dropped = list(
-                map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, target_words)))
-            pred_zero_dropped = list(map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, pred_words)))
-            wer_vec = wer_vector(target_zero_dropped, pred_zero_dropped)
-            val_wer += (sum(wer_vec) / float(len(wer_vec)))
+                target_words_zero_count = list(map(lambda y: y.count('0'), target_words))
+                # print('tgt_zero_count', target_words_zero_count)
+                target_zero_dropped = list(
+                    map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, target_words)))
+                pred_zero_dropped = list(map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, pred_words)))
+                wer_vec = wer_vector(target_zero_dropped, pred_zero_dropped)
+                val_wer += (sum(wer_vec) / float(len(wer_vec)))
 
-            loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
-            losses += loss.item()
-        return losses / cnt, val_wer / cnt
+                loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+                losses += loss.item()
+            return losses / cnt, val_wer / cnt
 
     def train_and_evaluate(self):
-        # wandb.init(project='ecog2txt-pytorch', entity='akamsali')
+        wandb.init(project='ecog2txt-pytorch', entity='akamsali')
 
-        # Magic
-        # wandb.watch(self.model, log_freq=1)
-
+            # Magic
+        wandb.watch(self.model, log_freq=1)
         loo = LeaveOneOut()
-        for ind, train_split, val_split in enumerate(loo.split(self.block_config)):
+        for ind, (train_split, val_split) in enumerate(loo.split(self.block_config)):
             self.dataloaders = {'train_dataloader':
-                                    self.ecog.get_data_loader_for_blocks(
-                                        batch_size=self.manifest['training']['batch_size'],
-                                        loo_split=train_split),
+                                    self.ecog.get_data_loader_for_blocks(split=train_split,
+                                        batch_size=self.manifest['training']['batch_size']),
                                 'val_dataloader':
-                                    self.ecog.get_data_loader_for_blocks(
-                                        batch_size=self.manifest['training']['batch_size'],
-                                        loo_split=val_split)
+                                    self.ecog.get_data_loader_for_blocks(split=val_split,
+                                        batch_size=self.manifest['training']['batch_size'])
                                 }
 
             reset_weights(self.model)
-
-            best_val_loss = 10000
-            output_dir = self.manifest['training']['output_dir']
-            print(f"Running {ind} of {len(self.block_config)} splits")
+            print(f"Running {ind+1} of {len(self.block_config)} splits")
+            
+            # best_val_loss = 10000
+            #output_dir = self.manifest['training']['output_dir']
+            
+            best_val_loss = 100000
+            metrics = []
             for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
-                start_time = time.time()
+                #start_time = time.time()
                 train_loss = self.train_epoch()
-                end_time = time.time()
+                #end_time = time.time()
+                
                 val_loss, val_wer = self.evaluate()
-                # change this to val_acc
+                
                 if val_loss < best_val_loss:
-                    torch.save(self.model.state_dict(), output_dir + 'best_model.pt')
-
-                print(
-                    (f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}"
-                     f" Epoch time = {(end_time - start_time):.3f}s"))
-            # wandb.log({"train_loss": train_loss, "val_loss": val_loss, "Val WER": val_wer})
+                    best_val_loss = val_loss
+                    
+                metrics_to_log = {}
+                metrics_to_log['train_loss: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = train_loss
+                metrics_to_log['val_loss: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = val_loss
+                metrics_to_log['val WER: ' + self.subject_id + '_' + list(self.block_config)[ind]]  = val_wer
+                print(metrics_to_log)
+                wandb.log(metrics_to_log)
+                
+                    
+#                     torch.save(self.model.state_dict(), output_dir + 'best_model.pt')
+#                 print(
+#                     (f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}"
+#                      f" Epoch time = {(end_time - start_time):.3f}s"))

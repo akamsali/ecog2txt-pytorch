@@ -79,7 +79,7 @@
       phoneme_sequence: byte
   training:
     batch_size: 32
-    num_epochs: 500
+    num_epochs: 50
     output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
@@ -179,7 +179,7 @@
       phoneme_sequence: byte
   training:
     batch_size: 32
-    num_epochs: 500
+    num_epochs: 50
     output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
@@ -279,7 +279,7 @@
       phoneme_sequence: byte
   training:
     batch_size: 32
-    num_epochs: 500
+    num_epochs: 50
     output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
@@ -379,7 +379,7 @@
       phoneme_sequence: byte
   training:
     batch_size: 32
-    num_epochs: 500
+    num_epochs: 50
     output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
