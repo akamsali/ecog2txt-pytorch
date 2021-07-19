@@ -88,6 +88,9 @@ class SingleSubjectTrainer:
 
             src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, self.manifest_model_args[
                 'kernel_size'], tgt_input, self.pad_idx, self.device)
+            
+#             print('train_tgt_mask', tgt_mask)
+#             print('train_tgt_padding_mask', tgt_padding_mask)
 
             logits = self.model(src, tgt_input, src_mask, tgt_mask,
                                 src_padding_mask, tgt_padding_mask, src_padding_mask)
@@ -116,7 +119,10 @@ class SingleSubjectTrainer:
 
                 src_mask, tgt_mask, src_padding_mask, tgt_padding_mask = create_mask(src, self.manifest_model_args[
                     'kernel_size'], tgt_input, self.pad_idx, self.device)
-
+                
+#                 print('evaluate_tgt_mask', tgt_mask)
+#                 print('evaluate_tgt_padding_mask', tgt_padding_mask)
+                
                 logits = self.model(src, tgt_input, src_mask, tgt_mask,
                                     src_padding_mask, tgt_padding_mask, src_padding_mask)
                 preds = torch.argmax(logits, dim=2)
@@ -125,18 +131,25 @@ class SingleSubjectTrainer:
 
                 pred_words = preds.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
                 target_words = tgt_out.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
-
-                #             print("target: ", target_words)
-                #             print("pred: ", pred_words)
-                #             print("matched: ", target_words[target_words==pred_words])
-                #             print("matched_shape: ", (target_words[target_words==pred_words]).shape)
-
-                target_words_zero_count = list(map(lambda y: y.count('0'), target_words))
-                # print('tgt_zero_count', target_words_zero_count)
-                target_zero_dropped = list(
-                    map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, target_words)))
-                pred_zero_dropped = list(map(lambda x: x[1][:len(x[1]) - x[0]], zip(target_words_zero_count, pred_words)))
-                wer_vec = wer_vector(target_zero_dropped, pred_zero_dropped)
+                
+                #drop after '<EOS>' (='1.0')
+#                 print('tgt words: ', target_words)
+                target_words_EOS_pos = list(map(lambda y: y.index('1'), target_words))
+#                 print('position: ', target_words_EOS_pos)
+                target_pad_dropped = list(
+                    map(lambda x: x[1][:x[0] + 1], zip(target_words_EOS_pos, target_words)))
+#                 print('tgt_dropped: ', target_pad_dropped)
+                
+#                 print('pred words: ', pred_words)
+                pred_words_EOS_pos = list(map(lambda y: y.index('1'), pred_words))
+#                 print('position: ', pred_words_EOS_pos)
+                pred_pad_dropped = list(
+                    map(lambda x: x[1][:x[0] + 1], zip(pred_words_EOS_pos, pred_words)))
+#                 print('pred_dropped: ', pred_pad_dropped)
+                
+                
+                wer_vec = wer_vector(target_pad_dropped, pred_pad_dropped)
+                #print('wer_vec: ', wer_vec)
                 val_wer += (sum(wer_vec) / float(len(wer_vec)))
 
                 loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
@@ -151,7 +164,10 @@ class SingleSubjectTrainer:
         metrics = {}
         loo = LeaveOneOut()
         for ind, (train_split, val_split) in enumerate(loo.split(self.block_config)):
-            block_left_out = ind
+            keys = list(self.block_config.keys())
+            #print(keys)
+            block_left_out = str(ind) + '_' + self.block_config[keys[ind]]['type']
+            print('left_out', block_left_out)
             self.dataloaders = {'train_dataloader':
                                     self.ecog.get_data_loader_for_blocks(split=train_split,
                                         batch_size=self.manifest['training']['batch_size']),
@@ -161,7 +177,7 @@ class SingleSubjectTrainer:
                                 }
 
             reset_weights(self.model)
-            print(f"block_{ind+1}:")
+            #print(f"block_{ind+1}:")
             
             # best_val_loss = 10000
             #output_dir = self.manifest['training']['output_dir']
@@ -169,9 +185,9 @@ class SingleSubjectTrainer:
             best_val_loss = 100000
             metrics[block_left_out] = {'train_loss': [], 'val_loss': [], 'val_WER' : []} 
             for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
-                #start_time = time.time()
+                start_time = time.time()
                 train_loss = self.train_epoch()
-                #end_time = time.time()
+                end_time = time.time()
                 
                 val_loss, val_wer = self.evaluate()
                 
@@ -181,7 +197,10 @@ class SingleSubjectTrainer:
                 metrics[block_left_out]['train_loss'].append(train_loss)
                 metrics[block_left_out]['val_loss'].append(val_loss)
                 metrics[block_left_out]['val_WER'].append(val_wer)
-                print(f"epoch_{epoch}: {metrics[block_left_out]},")
+                print(f"epoch_{epoch}: Train_loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}, Epoch time = {(end_time - start_time):.3f}s")
+            print("block_left_out", block_left_out)
+            print("metrics: ", metrics[block_left_out])
+            
         return metrics 
 #                 wandb.log(metrics_to_log)
                     

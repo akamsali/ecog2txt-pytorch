@@ -43,16 +43,15 @@ class EcogDataLoader:
 
     def convert_to_str(self, record):
         word_ind_map_dict = self.vocabulary.words_ind_map
-        # record['text_sequence'] = list(map(lambda y: y.decode(), record['text_sequence']))
         record['text_sequence'] = list(
             map(lambda y: float(word_ind_map_dict[y.decode()]) if y.decode() in word_ind_map_dict else
             word_ind_map_dict['<OOV>'], record['text_sequence']))
-        # print("text_sequence as list: ",record['text_sequence'])
+        record['text_sequence'].append(1.0)
         return self.transform_fn(record)
 
     def get_data_loader_for_blocks(self, split, batch_size=1, mode='mem'):
-        
-        filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + list(self.block_config)[y] + ".tfrecord", split))
+        keys = list(self.block_config.keys())
+        filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
 #         print(filtered_files)
             
 #             filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
