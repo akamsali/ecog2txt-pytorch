@@ -51,11 +51,11 @@ class EcogDataLoader:
 
     def get_data_loader_for_blocks(self, split, batch_size=1, mode='mem'):
         keys = list(self.block_config.keys())
-        filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
-#         print(filtered_files)
-            
-#             filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
-            
+        filtered_files = list(
+            map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
+        #         print(filtered_files)
+
+        #             filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
 
         if mode == 'disk':
             # print("partition_type", partition_type, "filtered_files", filtered_files)
