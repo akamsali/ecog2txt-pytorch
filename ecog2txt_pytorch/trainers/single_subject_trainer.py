@@ -59,6 +59,7 @@ class SingleSubjectTrainer:
                              }
 
         self.pad_idx = vocabulary.words_ind_map['<pad>']
+        self.word_ind = vocabulary.words_ind_map
         self.ind_word_map_dict = vocabulary.ind_words_map
         # no extra files present in EFC400. Change validation to extra if present 
         #         self.dataloaders = {'train_dataloader':
@@ -110,7 +111,7 @@ class SingleSubjectTrainer:
             losses = 0.0
             cnt = 0.0
             val_wer = 0.0
-            ind_to_words = []
+            ind_to_words = {}
             for idx, (src, tgt) in enumerate(self.dataloaders['val_dataloader']):
                 cnt += 1
                 src = src.to(self.device)
@@ -134,33 +135,36 @@ class SingleSubjectTrainer:
                 target_words = tgt_out.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
 
                 # drop after '<EOS>' (='1')
-                #                 print('tgt words: ', target_words)
+                # print('tgt words: ', target_words)
                 target_words_EOS_pos = list(map(lambda y: y.index('1'), target_words))
-                #                 print('position: ', target_words_EOS_pos)
+                # print('position: ', target_words_EOS_pos)
                 target_pad_dropped = list(
                     map(lambda x: x[1][:x[0] + 1], zip(target_words_EOS_pos, target_words)))
-                #                 print('tgt_dropped: ', target_pad_dropped)
+                # print('tgt_dropped_ind: ', target_pad_dropped)
 
-                #                 print('pred words: ', pred_words)
-                pred_words_EOS_pos = list(map(lambda y: y.index('1'), pred_words))
-                #                 print('position: ', pred_words_EOS_pos)
+                # print('pred words: ', pred_words)
+                pred_words_EOS_pos = list(map(lambda y: y.index('1') if '1' in y else -1, pred_words))
+                # print('position: ', pred_words_EOS_pos)
                 pred_pad_dropped = list(
                     map(lambda x: x[1][:x[0] + 1], zip(pred_words_EOS_pos, pred_words)))
-                #                 print('pred_dropped: ', pred_pad_dropped)
-                tgt_words = list(map(lambda t: self.ind_word_map_dict[t], target_pad_dropped))
-                pred_words = list(map(lambda t: self.ind_word_map_dict[t], pred_pad_dropped))
-
-                ind_to_words.append([tgt_words, pred_words])
-
+                # print('pred_dropped: ', pred_pad_dropped)
+                
+                tgt_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], tgt_sentence)) for tgt_sentence in target_pad_dropped]
+#                 print('tgt_dropped_words: ', tgt_ind_word_map)
+                pred_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], pred_sentence)) for pred_sentence in pred_pad_dropped]
+#                 print('pred_dropped_words: ', pred_ind_word_map)
+                ind_to_words = {'tgt': [], 'pred': []}
+                ind_to_words['tgt'].append(tgt_ind_word_map)
+                ind_to_words['pred'].append(pred_ind_word_map)
+                
                 wer_vec = wer_vector(target_pad_dropped, pred_pad_dropped)
                 # print('wer_vec: ', wer_vec)
                 val_wer += (sum(wer_vec) / float(len(wer_vec)))
 
                 loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
                 losses += loss.item()
-
-            print(ind_to_words)
-            return losses / cnt, val_wer / cnt
+            
+            return ind_to_words, losses / cnt, val_wer / cnt
 
     def train_and_evaluate(self):
         #         wandb.init(project='ecog2txt-pytorch', entity='akamsali')
@@ -168,6 +172,7 @@ class SingleSubjectTrainer:
         # Magic
         #         wandb.watch(self.model, log_freq=1)
         metrics = {}
+        tgt_pred_words = {}
         loo = LeaveOneOut()
         for ind, (train_split, val_split) in enumerate(loo.split(self.block_config)):
             keys = list(self.block_config.keys())
@@ -191,26 +196,32 @@ class SingleSubjectTrainer:
             # output_dir = self.manifest['training']['output_dir']
 
             best_val_loss = 100000
+            tgt_pred_words[block_left_out] = {'tgt': [], 'pred': []}
             metrics[block_left_out] = {'train_loss': [], 'val_loss': [], 'val_WER': []}
+            
             for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
                 start_time = time.time()
                 train_loss = self.train_epoch()
                 end_time = time.time()
 
-                val_loss, val_wer = self.evaluate()
+                ind_to_words, val_loss, val_wer = self.evaluate()
 
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-
+                    torch.save(self.model, '/scratch/gilbreth/akamsali/Research/Makin/outputs/best_models/best_model_' + block_left_out + '.pt') 
+                tgt_pred_words[block_left_out]['tgt'].append(ind_to_words['tgt'])
+                tgt_pred_words[block_left_out]['pred'].append(ind_to_words['pred'])
                 metrics[block_left_out]['train_loss'].append(train_loss)
                 metrics[block_left_out]['val_loss'].append(val_loss)
                 metrics[block_left_out]['val_WER'].append(val_wer)
-                print(
-                    f"epoch_{epoch}: Train_loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}, Epoch time = {(end_time - start_time):.3f}s")
-            print("block_left_out", block_left_out)
-            print("metrics: ", metrics[block_left_out])
-
-        return metrics
+                
+                if not epoch%10: 
+                    print(f"epoch_{epoch}: Train_loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}, Epoch time = {(end_time - start_time):.3f}s")
+                #print('words: ', tgt_pred_words[block_left_out])
+                if not epoch%100:
+                    print('tgt: ', tgt_pred_words[block_left_out]['tgt'][-1])
+                    print('pred: ', tgt_pred_words[block_left_out]['pred'][-1])
+        return tgt_pred_words, metrics
     #                 wandb.log(metrics_to_log)
 
 #                     torch.save(self.model.state_dict(), output_dir + 'best_model.pt')
