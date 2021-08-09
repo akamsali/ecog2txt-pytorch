@@ -30,7 +30,7 @@ setuptools.setup(
     ],
     install_requires=[
         'numpy', 'scipy', 'matplotlib', 'pandas', 'seaborn',
-        'tikzplotlib', 'torch', 'hickle',
+        'tikzplotlib', 'hickle',
         'python_speech_features', 'pyyaml', 'protobuf>=3.7',
         'tfrecord', 'tfrecord_lite', 'wandb', 'sklearn',
     ],

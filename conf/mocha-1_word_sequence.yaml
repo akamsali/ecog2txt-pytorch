@@ -79,7 +79,7 @@
       phoneme_sequence: byte
   training:
     batch_size: 32
-    num_epochs: 100
+    num_epochs: 500
     output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
