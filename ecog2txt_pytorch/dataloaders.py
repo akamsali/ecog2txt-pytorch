@@ -30,9 +30,7 @@ class EcogDataLoader:
 
     def transform_fn(self, record):
         # Reshapes the ecog sequence to (len_ecog_sequence , num_channels) 
-        # print('ecog_len', len(record['ecog_sequence']))
         record['ecog_sequence'] = record['ecog_sequence'].reshape(-1, self.num_ECoG_channels)
-
         return record
 
     def pad_collate(self, batch):
@@ -42,20 +40,23 @@ class EcogDataLoader:
                 for key in ['ecog_sequence', 'text_sequence'])
 
     def convert_to_str(self, record):
+        
         word_ind_map_dict = self.vocabulary.words_ind_map
         record['text_sequence'] = list(
             map(lambda y: float(word_ind_map_dict[y.decode()]) if y.decode() in word_ind_map_dict else
             word_ind_map_dict['<OOV>'], record['text_sequence']))
-        record['text_sequence'].append(1.0)
+        record['text_sequence'] = [4.0] + record['text_sequence'] + [1.0]
+
         return self.transform_fn(record)
 
-    def get_data_loader_for_blocks(self, split, batch_size=1, mode='mem'):
+    def get_data_loader_for_blocks(self, partition_type='training', batch_size=1, mode='mem'):
         keys = list(self.block_config.keys())
-        filtered_files = list(
-            map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
+        # filtered_files = list(
+            # map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
         #         print(filtered_files)
 
-        #             filtered_files = list(map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
+        filtered_files = list(
+            map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
 
         if mode == 'disk':
             # print("partition_type", partition_type, "filtered_files", filtered_files)
@@ -73,5 +74,6 @@ class EcogDataLoader:
             for f in filtered_files:
                 dataset_iterator = tf_record_iterator(f)
                 datasets.extend([self.convert_to_str(d) for d in dataset_iterator])
-
+            
+            #print(len(datasets))
             return tdata.DataLoader(datasets, batch_size=batch_size, collate_fn=self.pad_collate, pin_memory=True)
