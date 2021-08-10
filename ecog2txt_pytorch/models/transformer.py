@@ -25,7 +25,7 @@ class Transformer(nn.Module):
                                     num_layers=num_decoder_layers)
 
         self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        # self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
+        self.src_tok_emb = TokenEmbedding(src_vocab_size, emb_size)
         self.tgt_tok_emb = TokenEmbedding(tgt_vocab_size, emb_size)
         self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
 
@@ -40,8 +40,8 @@ class Transformer(nn.Module):
         src_emb = self.positional_encoding(src_conv.transpose(1, 2).transpose(0,1))
         tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
 
-        #print('src_emb_shape: ', src_emb.shape,'tgt_emb_shape: ',tgt_emb.shape ,'src_mask_shape: ',
-        #      src_mask.shape, 'src_pad_shape: ',src_padding_mask.shape)
+        # print('src_emb_shape: ', src_emb.shape,'tgt_emb_shape: ',tgt_emb.shape ,'src_mask_shape: ',
+        #   src_mask.shape, 'src_pad_shape: ',src_padding_mask.shape)
         memory = self.transformer_encoder(src_emb, src_mask)
         #print("here af tr enc")
         outs = self.transformer_decoder(tgt_emb, memory, tgt_mask, None,
@@ -51,8 +51,9 @@ class Transformer(nn.Module):
         return self.generator(outs)
 
     def encode(self, src: Tensor, src_mask: Tensor):
+        src_conv = self.conv_layer(src.transpose(-2, -1))
         return self.transformer_encoder(self.positional_encoding(
-                            self.src_tok_emb(src)), src_mask)
+                            src_conv.transpose(1, 2).transpose(0,1)), src_mask)
 
     def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
         return self.transformer_decoder(self.positional_encoding(

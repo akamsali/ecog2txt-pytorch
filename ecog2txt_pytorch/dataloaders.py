@@ -45,7 +45,7 @@ class EcogDataLoader:
         record['text_sequence'] = list(
             map(lambda y: float(word_ind_map_dict[y.decode()]) if y.decode() in word_ind_map_dict else
             word_ind_map_dict['<OOV>'], record['text_sequence']))
-        record['text_sequence'] = [4.0] + record['text_sequence'] + [1.0]
+        record['text_sequence'] = [3.0] + record['text_sequence'] + [1.0]
 
         return self.transform_fn(record)
 

@@ -26,7 +26,7 @@
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 0
-  bad_electrodes_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC400/bad_electrodes.json
+  bad_electrodes_path: /home/amy/Documents/Research/Makin/data/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
@@ -42,7 +42,7 @@
     encoder_1_targets: phoneme_sequence
     encoder_inputs: ecog_sequence
   decimation_factor: null
-  electrode_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC400/TDT_elecs_all.mat
+  electrode_path: /home/amy/Documents/Research/Makin/data/TDT_elecs_all.mat
   elevation: 0
   encoder_1_targets_penalty_scale: 1.0
   grid_names:
@@ -51,16 +51,16 @@
   - 16
   - 16
   grid_step: 1
-  json_dir: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-ak/conf
+  json_dir: /home/amy/Documents/Research/Makin/ecog2txt-ak/conf
   model: !!python/name:ecog2txt_pytorch.models.transformer.Transformer
   model_args:
     Transformer:
       num_encoder_layers: 3
       num_decoder_layers: 3
-      dim_feedforward: 256
+      dim_feedforward: 64
       dropout: 0.1
       nhead: 8
-      num_out_channels: 256 
+      num_out_channels: 64 
       kernel_size: 3
   optimizer:
     lr: 0.0001
@@ -69,35 +69,35 @@
     - 0.98
     eps: 1e-9
   data:
-    block_config_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
-    data_path: /depot/jgmakin/data/ecog2txt/word_sequence/tf_records
-    vocab_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
+    block_config_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
+    data_path: /home/amy/Documents/Research/Makin/data
+    vocab_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
     description:
       audio_sequence: float
       ecog_sequence: float
       text_sequence: byte
       phoneme_sequence: byte
   training:
-    batch_size: 32
-    num_epochs: 500
-    output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
+    batch_size: 4
+    num_epochs: 100
+    output_dir: /home/amy/Documents/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
   num_cepstral_coeffs: 0
   num_mel_features: 26
   num_unique_training_sentences: 50
   phoneme_sequence_vocab_file: vocab.phonemes.42
-  png_partial_path: /scratch/gilbreth/akamsali/Research/Makin/figures/word_sequence/EFC400/{0}.png
+  png_partial_path: /home/amy/Documents/Research/Makin/figures/word_sequence/EFC400/{0}.png
   project: EFC
   sampling_rate: 200
   sampling_rate_decimated: 16.5
-  saved_results_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/saved_results
+  saved_results_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/saved_results
   subject_name: EFC400
   temperature: 0.384
   text_sequence_vocab_file: vocab.mocha-timit.1806
-  tf_record_partial_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC400_B{0}.tfrecord
-  tf_summaries_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
-  tikz_partial_path: /scratch/gilbreth/akamsali/Research/Makin/#texs/tikzpics/word_sequence/EFC400/{0}.tex
+  tf_record_partial_path: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC400_B{0}.tfrecord
+  tf_summaries_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
+  tikz_partial_path: /home/amy/Documents/Research/Makin/#texs/tikzpics/word_sequence/EFC400/{0}.tex
   token_type: word_sequence
 401:
   DataGenerator: &id002 !!python/name:ecog2txt.data_generators.ECoGDataGenerator ''
@@ -126,7 +126,7 @@
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 0
-  bad_electrodes_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC401/bad_electrodes.json
+  bad_electrodes_path: /home/amy/Documents/Research/Makin/data/ecog/EFC401/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
@@ -142,7 +142,7 @@
     encoder_1_targets: phoneme_sequence
     encoder_inputs: ecog_sequence
   decimation_factor: null
-  electrode_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC401/TDT_elecs_all.mat
+  electrode_path: /home/amy/Documents/Research/Makin/data/ecog/EFC401/TDT_elecs_all.mat
   elevation: 0
   encoder_1_targets_penalty_scale: 1.0
   grid_names:
@@ -151,7 +151,7 @@
   - 16
   - 16
   grid_step: 1
-  json_dir: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-ak/conf
+  json_dir: /home/amy/Documents/Research/Makin/ecog2txt-ak/conf
   model: !!python/name:ecog2txt_pytorch.models.transformer.Transformer
   model_args:
     Transformer:
@@ -169,9 +169,9 @@
     - 0.98
     eps: 1e-9
   data:
-    block_config_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
+    block_config_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
     data_path: /depot/jgmakin/data/ecog2txt/word_sequence/tf_records
-    vocab_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
+    vocab_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
     description:
       audio_sequence: float
       ecog_sequence: float
@@ -180,24 +180,24 @@
   training:
     batch_size: 32
     num_epochs: 50
-    output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
+    output_dir: /home/amy/Documents/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
   num_cepstral_coeffs: 0
   num_mel_features: 26
   num_unique_training_sentences: 50
   phoneme_sequence_vocab_file: vocab.phonemes.42
-  png_partial_path: /scratch/gilbreth/akamsali/Research/Makin/figures/word_sequence/EFC401/{0}.png
+  png_partial_path: /home/amy/Documents/Research/Makin/figures/word_sequence/EFC401/{0}.png
   project: EFC
   sampling_rate: 200
   sampling_rate_decimated: 16.5
-  saved_results_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/saved_results
+  saved_results_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/saved_results
   subject_name: EFC401
   temperature: 0.384
   text_sequence_vocab_file: vocab.mocha-timit.1806
-  tf_record_partial_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC401_B{0}.tfrecord
-  tf_summaries_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
-  tikz_partial_path: /scratch/gilbreth/akamsali/Research/Makin/#texs/tikzpics/word_sequence/EFC401/{0}.tex
+  tf_record_partial_path: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC401_B{0}.tfrecord
+  tf_summaries_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
+  tikz_partial_path: /home/amy/Documents/Research/Makin/#texs/tikzpics/word_sequence/EFC401/{0}.tex
   token_type: word_sequence
 402:
   DataGenerator: &id003 !!python/name:ecog2txt.data_generators.ECoGDataGenerator ''
@@ -226,7 +226,7 @@
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 180
-  bad_electrodes_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC402/bad_electrodes.json
+  bad_electrodes_path: /home/amy/Documents/Research/Makin/data/ecog/EFC402/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
@@ -242,7 +242,7 @@
     encoder_1_targets: phoneme_sequence
     encoder_inputs: ecog_sequence
   decimation_factor: null
-  electrode_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC402/TDT_elecs_all.mat
+  electrode_path: /home/amy/Documents/Research/Makin/data/ecog/EFC402/TDT_elecs_all.mat
   elevation: 10
   encoder_1_targets_penalty_scale: 1.0
   grid_names:
@@ -251,7 +251,7 @@
   - 8
   - 16
   grid_step: 1
-  json_dir: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-ak/conf
+  json_dir: /home/amy/Documents/Research/Makin/ecog2txt-ak/conf
   model: !!python/name:ecog2txt_pytorch.models.transformer.Transformer
   model_args:
     Transformer:
@@ -269,9 +269,9 @@
     - 0.98
     eps: 1e-9
   data:
-    block_config_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
+    block_config_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
     data_path: /depot/jgmakin/data/ecog2txt/word_sequence/tf_records
-    vocab_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
+    vocab_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
     description:
       audio_sequence: float
       ecog_sequence: float
@@ -280,24 +280,24 @@
   training:
     batch_size: 32
     num_epochs: 50
-    output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
+    output_dir: /home/amy/Documents/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
   num_cepstral_coeffs: 0
   num_mel_features: 26
   num_unique_training_sentences: 50
   phoneme_sequence_vocab_file: vocab.phonemes.42
-  png_partial_path: /scratch/gilbreth/akamsali/Research/Makin/figures/word_sequence/EFC402/{0}.png
+  png_partial_path: /home/amy/Documents/Research/Makin/figures/word_sequence/EFC402/{0}.png
   project: EFC
   sampling_rate: 190.73486328125
   sampling_rate_decimated: 16.5
-  saved_results_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/saved_results
+  saved_results_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/saved_results
   subject_name: EFC402
   temperature: 0.384
   text_sequence_vocab_file: vocab.mocha-timit.1806
-  tf_record_partial_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC402_B{0}.tfrecord
-  tf_summaries_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
-  tikz_partial_path: /scratch/gilbreth/akamsali/Research/Makin/#texs/tikzpics/word_sequence/EFC402/{0}.tex
+  tf_record_partial_path: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC402_B{0}.tfrecord
+  tf_summaries_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
+  tikz_partial_path: /home/amy/Documents/Research/Makin/#texs/tikzpics/word_sequence/EFC402/{0}.tex
   token_type: word_sequence
 403:
   DataGenerator: &id004 !!python/name:ecog2txt.data_generators.ECoGDataGenerator ''
@@ -326,7 +326,7 @@
   assessment_epoch_interval: 10
   audio_sequence_penalty_scale: 0.1
   azimuth: 170
-  bad_electrodes_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC403/bad_electrodes.json
+  bad_electrodes_path: /home/amy/Documents/Research/Makin/data/ecog/EFC403/bad_electrodes.json
   beam_width: 1
   block_descriptors:
   - type
@@ -342,7 +342,7 @@
     encoder_1_targets: phoneme_sequence
     encoder_inputs: ecog_sequence
   decimation_factor: null
-  electrode_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog/EFC403/TDT_elecs_all.mat
+  electrode_path: /home/amy/Documents/Research/Makin/data/ecog/EFC403/TDT_elecs_all.mat
   elevation: 0
   encoder_1_targets_penalty_scale: 1.0
   grid_names:
@@ -351,7 +351,7 @@
   - 16
   - 16
   grid_step: 1
-  json_dir: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-ak/conf
+  json_dir: /home/amy/Documents/Research/Makin/ecog2txt-ak/conf
   model: !!python/name:ecog2txt_pytorch.models.transformer.Transformer
   model_args:
     Transformer:
@@ -369,9 +369,9 @@
     - 0.98
     eps: 1e-9
   data:
-    block_config_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
+    block_config_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/block_breakdowns.json
     data_path: /depot/jgmakin/data/ecog2txt/word_sequence/tf_records
-    vocab_path: /scratch/gilbreth/akamsali/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
+    vocab_path: /home/amy/Documents/Research/Makin/ecog2txt-pytorch/conf/vocab.mocha-timit.1806
     description:
       audio_sequence: float
       ecog_sequence: float
@@ -380,22 +380,22 @@
   training:
     batch_size: 32
     num_epochs: 50
-    output_dir: /scratch/gilbreth/akamsali/Research/Makin/outputs/
+    output_dir: /home/amy/Documents/Research/Makin/outputs/
   mfcc_winlen: 0.02
   model_class: null
   num_cepstral_coeffs: 0
   num_mel_features: 26
   num_unique_training_sentences: 50
   phoneme_sequence_vocab_file: vocab.phonemes.42
-  png_partial_path: /scratch/gilbreth/akamsali/Research/Makin/figures/word_sequence/EFC403/{0}.png
+  png_partial_path: /home/amy/Documents/Research/Makin/figures/word_sequence/EFC403/{0}.png
   project: EFC
   sampling_rate: 190.73486328125
   sampling_rate_decimated: 16.5
-  saved_results_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/saved_results
+  saved_results_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/saved_results
   subject_name: EFC403
   temperature: 0.384
   text_sequence_vocab_file: vocab.mocha-timit.1806
-  tf_record_partial_path: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC403_B{0}.tfrecord
-  tf_summaries_dir: /scratch/gilbreth/akamsali/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
-  tikz_partial_path: /scratch/gilbreth/akamsali/Research/Makin/#texs/tikzpics/word_sequence/EFC403/{0}.tex
+  tf_record_partial_path: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_records/EFC403_B{0}.tfrecord
+  tf_summaries_dir: /home/amy/Documents/Research/Makin/data/ecog2txt/word_sequence/tf_summaries
+  tikz_partial_path: /home/amy/Documents/Research/Makin/#texs/tikzpics/word_sequence/EFC403/{0}.tex
   token_type: word_sequence
