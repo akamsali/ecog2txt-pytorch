@@ -22,7 +22,7 @@
 	},
 	"400": {
 		"3": {"type": "mocha-1", "default_dataset": "training"},
-		"23": {"type": "mocha-1", "default_dataset": "validation"},
+		"23": {"type": "mocha-1", "default_dataset": "training"},
 		"72": {"type": "mocha-1", "default_dataset": "test"}
 	},
 	"400a": {
