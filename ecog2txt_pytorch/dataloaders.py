@@ -47,16 +47,21 @@ class EcogDataLoader:
             word_ind_map_dict['<OOV>'], record['text_sequence']))
         record['text_sequence'] = [3] + record['text_sequence'] + [1]
 
+        # record['phoneme_sequence'] = list(
+        #     map(lambda y: word_ind_map_dict[y.decode()] if y.decode() in word_ind_map_dict else
+        #     word_ind_map_dict['<OOV>'], record['phoneme_sequence']))
+        # record['phoneme_sequence'] = [2] + record['phoneme_sequence']
+
         return self.transform_fn(record)
 
-    def get_data_loader_for_blocks(self, partition_type='training', batch_size=1, mode='mem'):
+    def get_data_loader_for_blocks(self, split , partition_type='training', batch_size=1, mode='mem'):
         keys = list(self.block_config.keys())
-        # filtered_files = list(
-            # map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
-        #         print(filtered_files)
-
         filtered_files = list(
-            map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
+            map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + keys[y] + ".tfrecord", split))
+        # print(filtered_files)
+
+        # filtered_files = list(
+        #     map(lambda y: self.tfrecord_path + "/EFC" + self.subject_id + "_B" + y[0] + ".tfrecord", filter(lambda x: x[1]["default_dataset"] == partition_type, self.block_config.items())))
 
         if mode == 'disk':
             # print("partition_type", partition_type, "filtered_files", filtered_files)

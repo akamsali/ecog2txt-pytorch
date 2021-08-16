@@ -60,9 +60,10 @@ class SingleSubjectTrainer:
 
         self.pad_idx = vocabulary.words_ind_map['<pad>']
         self.eos_idx = vocabulary.words_ind_map['<EOS>']
+        # self.eos_idx = vocabulary.words_ind_map['pau']
         self.sos_idx = vocabulary.words_ind_map['<SOS>']
 
-        # print('pad:', self.pad_idx, 'eos: ', self.eos_idx, 'sos: ', self.sos_idx)
+        print('pad:', self.pad_idx, 'eos: ', self.eos_idx, 'sos: ', self.sos_idx)
 
         self.word_ind = vocabulary.words_ind_map
         self.ind_word_map_dict = vocabulary.ind_words_map
@@ -72,10 +73,10 @@ class SingleSubjectTrainer:
                                                                 partition_type='training'),
                             'test_dataloader':
                                 self.ecog.get_data_loader_for_blocks(batch_size=1,
-                                                                partition_type='test'),
+                                                                partition_type='testing'),
                             'val_dataloader':
                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-                                                                partition_type='test')
+                                                                partition_type='testing')
                             }
         torch.manual_seed(0)
         self.model = manifest_model(**self.manifest_model_args, **self.vocab_params).to(self.device)
@@ -84,7 +85,6 @@ class SingleSubjectTrainer:
         self.model.train()
         losses = 0
         cnt = 0
-
         for src, tgt in self.dataloaders['train_dataloader']:
             cnt += 1
             src = src.to(self.device)
@@ -106,6 +106,7 @@ class SingleSubjectTrainer:
             loss.backward()
             self.optimizer.step()
             losses += loss.item()
+            # break
         return losses / cnt
 
     def evaluate(self):
@@ -133,7 +134,7 @@ class SingleSubjectTrainer:
 
                 loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
                 losses += loss.item()
-            
+                # break
             return losses / cnt
 
 
@@ -149,6 +150,7 @@ class SingleSubjectTrainer:
             # ys = ys.transpose(0,1)
             # print('here in greedy')
             memory = memory.to(self.device)
+        
             tgt_mask = (generate_square_subsequent_mask(ys.size(0), self.device)
                         .type(torch.bool))
             # print('ind:', i)
@@ -158,79 +160,82 @@ class SingleSubjectTrainer:
             prob = self.model.generator(out[:, -1])
             # print('prob:', prob.shape)
             _, next_word = torch.max(prob, dim=-1)
-            next_word = next_word.unsqueeze(0)
-            # print('next: ', next_word.shape)
-            # print('ys: ', ys.shape)
-
-            ys = torch.cat((ys,next_word), dim=0)
-            
+            next_word = next_word.item()
+            # print('next', next_word)
+            ys = torch.cat([ys,
+                        torch.ones(1, 1).type(torch.long).fill_(next_word).to(self.device)], dim=0)
                
             if next_word == self.eos_idx:
                 # print('i: ', i)
                 break
-
+        # print(ys)
         return ys
 
     def inference(self):
-        cnt = 0.0
-        val_wer = 0.0
-        ind_to_words = {'tgt': [], 'pred': []}
 
         self.model.eval()
         with torch.no_grad():
+            val_wer = []
+            ind_to_words = {'tgt': [], 'pred': []}
+
             for src, tgt in self.dataloaders['test_dataloader']:
-                cnt+=1
                 src = src.to(self.device)
+                # src = src[(src.shape[0]//2): , :]
+                # src = src.transpose(0,1)
+                # print('src_shape:', src.shape)
                 tgt = tgt.transpose(0, 1).to(self.device)
+                # print('tgt_shape: ', tgt.shape)
 
                 num_tokens = src.shape[1] - self.manifest_model_args['kernel_size'] + 1
+                # print("num_tokens: ", num_tokens)
                 src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
-                tgt_tokens = self.greedy_decode(src, src_mask,
+                pred_tokens = self.greedy_decode(src, src_mask,
                                 max_len=num_tokens + 5)
-                
-                tgt_tokens = tgt_tokens[1:,:]
-                pred_words = tgt_tokens.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
+                # print('pred_token: ', pred_tokens.shape)
+                # print('pred_token: ', pred_tokens)
+                pred_tokens = pred_tokens[1:,:]
+                pred_words = pred_tokens.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()[0]
                 # print('preds: ', pred_words)
+                
                 target_words = tgt[1:,:]
-                # print(target_words)
-                target_words = target_words.transpose(0,1).cpu().detach().numpy().astype(str).tolist()
-                #print('tgt: ', len(target_words))
+                # print('target: '. len(target_words))
+                target_words = target_words.transpose(0,1).cpu().detach().numpy().astype(str).tolist()[0]
+                # print('tgt: ', target_words)
+                # print('tgt_words: ', tgt)
 
-                target_words_EOS_pos = list(map(lambda y: y.index(str(self.eos_idx)), target_words))
-                # print('position: ', target_words_EOS_pos)
-                target_pad_dropped = list(
-                    map(lambda x: x[1][:x[0] + 1], zip(target_words_EOS_pos, target_words)))
-                # print('tgt_dropped_ind: ', target_pad_dropped)
+                # target_words_EOS_pos = list(map(lambda y: y.index(str(self.eos_idx)), target_words))
+                # # print('position: ', target_words_EOS_pos)
+                # target_pad_dropped = list(
+                #     map(lambda x: x[1][:x[0]+1], zip(target_words_EOS_pos, target_words)))
+                # # print('tgt_dropped: ', target_pad_dropped)
                 
-
                 # print('pred words: ', pred_words)
-                pred_words_EOS_pos = list(map(lambda y: y.index(str(self.eos_idx)) if str(self.eos_idx) in y else -1, pred_words))
+                pred_words_EOS_pos = pred_words.index(str(self.eos_idx)) if str(self.eos_idx) in pred_words else -1
                 # print('position: ', pred_words_EOS_pos)
-                pred_pad_dropped = list(
-                    map(lambda x: x[1][:x[0] + 1], zip(pred_words_EOS_pos, pred_words)))
-                # print('pred_dropped: ', pred_pad_dropped)
+                pred_words = pred_words[:pred_words_EOS_pos+1]
+                # print('pred_dropped: ', pred_words)
                 
-                tgt_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], tgt_sentence)) for tgt_sentence in target_pad_dropped]
-#                 print('tgt_dropped_words: ', tgt_ind_word_map)
-                pred_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], pred_sentence)) for pred_sentence in pred_pad_dropped]
-#                 print('pred_dropped_words: ', pred_ind_word_map)
+                
+                tgt_ind_word_map = list(map(lambda t: self.ind_word_map_dict[int(t)], target_words))
+                # print('tgt_dropped_words: ', tgt_ind_word_map)
+                pred_ind_word_map = list(map(lambda t: self.ind_word_map_dict[int(t)], pred_words))
+                # print('pred_dropped_words: ', pred_ind_word_map)
                 ind_to_words['tgt'].append(tgt_ind_word_map)
                 ind_to_words['pred'].append(pred_ind_word_map)
+                # break
                 
 
-                wer_vec = wer_vector(target_pad_dropped, pred_pad_dropped)
-                # print('wer_vec: ', wer_vec)
-                val_wer += (sum(wer_vec) / float(len(wer_vec)))
-                #print(val_wer)
-                # print('tgt: ', tgt)
-            return ind_to_words, val_wer / cnt
+            wer_vec = wer_vector(ind_to_words['tgt'], ind_to_words['pred'])
+            print(wer_vec)
+            val_wer = sum(wer_vec)/len(wer_vec)
+            return ind_to_words, val_wer
 
 
     def train_and_evaluate(self):
         
         best_val_loss = 100000
         metrics = {'train_loss': [], 'val_loss': [], 'val_WER': []}
-        
+        words = []
         for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
             start_time = time.time()
             train_loss = self.train_epoch()
@@ -240,18 +245,26 @@ class SingleSubjectTrainer:
             
             metrics['train_loss'].append(train_loss)
             metrics['val_loss'].append(val_loss)
-            if not epoch%10:    
+            # if not epoch%10:    
+            if not epoch%10:
                 print(f"epoch_{epoch}: Train_loss: {train_loss:.3f},Val loss: {val_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
                 inf_start = time.time()
                 ind_to_words, val_wer = self.inference()
                 inf_end = time.time()
-                print(f"Val WER: {val_wer:.3f}, , Inf_time={(inf_end-inf_start):.3f}s")
+                print(f"Val WER: {val_wer:.3f}, Inf_time={(inf_end-inf_start):.3f}s")
+                # print("====")
+                # print("tgt: ", ind_to_words['tgt'])
+                # print("pred: ", ind_to_words['pred'])
+                # print("====")
                 metrics['val_WER'].append(val_wer)
-            # if not epoch%50:
-            #     print(ind_to_words)
+                words.append(ind_to_words)
 
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                torch.save(self.model, '/scratch/gilbreth/akamsali/Research/Makin/outputs/best_model_mocha_1' + '.pt') 
+            # if not epoch%10:
+            #     print('ind_to_words_tgt: ', ind_to_words['tgt'])
+            #     print('ind_to_words_pred: ', ind_to_words['pred'])
+
+            # if val_loss < best_val_loss:
+            #     best_val_loss = val_loss
+            #     torch.save(self.model, '/scratch/gilbreth/akamsali/Research/Makin/outputs/best_model_mocha_1' + '.pt') 
                       
-        return metrics
+        return words, metrics

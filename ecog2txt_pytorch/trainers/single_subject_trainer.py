@@ -17,9 +17,9 @@ import wandb
 
 class SingleSubjectTrainer:
     def __init__(self, subject_id, manifest_path):
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.setup(subject_id, manifest_path)
 
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=self.pad_idx)
 
@@ -59,28 +59,33 @@ class SingleSubjectTrainer:
                              }
 
         self.pad_idx = vocabulary.words_ind_map['<pad>']
+        self.eos_idx = vocabulary.words_ind_map['<EOS>']
+        # self.eos_idx = vocabulary.words_ind_map['pau']
+        self.sos_idx = vocabulary.words_ind_map['<SOS>']
+
+        print('pad:', self.pad_idx, 'eos: ', self.eos_idx, 'sos: ', self.sos_idx)
+
         self.word_ind = vocabulary.words_ind_map
         self.ind_word_map_dict = vocabulary.ind_words_map
         # no extra files present in EFC400. Change validation to extra if present 
-        #         self.dataloaders = {'train_dataloader':
-        #                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                                 partition_type='training'),
-        #                             'test_dataloader':
-        #                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                                 partition_type='validation'),
-        #                             'val_dataloader':
-        #                                 self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
-        #                                                                 partition_type='validation')
-        #                             }
-        
-        self.model = manifest_model(**self.manifest_model_args, **self.vocab_params).to(device)
+        # self.dataloaders = {'train_dataloader':
+        #                         self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+        #                                                         partition_type='training'),
+        #                     'test_dataloader':
+        #                         self.ecog.get_data_loader_for_blocks(batch_size=1,
+        #                                                         partition_type='testing'),
+        #                     'val_dataloader':
+        #                         self.ecog.get_data_loader_for_blocks(batch_size=self.manifest['training']['batch_size'],
+        #                                                         partition_type='testing')
+        #                     }
+        torch.manual_seed(0)
+        self.model = manifest_model(**self.manifest_model_args, **self.vocab_params).to(self.device)
 
     def train_epoch(self):
         self.model.train()
         losses = 0
         cnt = 0
-
-        for idx, (src, tgt) in enumerate(self.dataloaders['train_dataloader']):
+        for src, tgt in self.dataloaders['train_dataloader']:
             cnt += 1
             src = src.to(self.device)
             tgt = tgt.transpose(0, 1).to(self.device)
@@ -101,16 +106,15 @@ class SingleSubjectTrainer:
             loss.backward()
             self.optimizer.step()
             losses += loss.item()
+            # break
         return losses / cnt
 
     def evaluate(self):
         self.model.eval()
         with torch.no_grad():
+            cnt = 0
             losses = 0.0
-            cnt = 0.0
-            val_wer = 0.0
-            ind_to_words = {}
-            for idx, (src, tgt) in enumerate(self.dataloaders['val_dataloader']):
+            for src, tgt in self.dataloaders['val_dataloader']:
                 cnt += 1
                 src = src.to(self.device)
                 tgt = tgt.transpose(0, 1).to(self.device)
@@ -123,44 +127,109 @@ class SingleSubjectTrainer:
                 
                 logits = self.model(src, tgt_input, src_mask, tgt_mask,
                                     src_padding_mask, tgt_padding_mask, src_padding_mask)
-                preds = torch.argmax(logits, dim=2)
-
-                tgt_out = tgt[1:, :].type(torch.LongTensor).to(device)
-
-                pred_words = preds.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
-                target_words = tgt_out.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()
-
-                # drop after '<EOS>' (='1')
-                # print('tgt words: ', target_words)
-                target_words_EOS_pos = list(map(lambda y: y.index('1'), target_words))
-                # print('position: ', target_words_EOS_pos)
-                target_pad_dropped = list(
-                    map(lambda x: x[1][:x[0] + 1], zip(target_words_EOS_pos, target_words)))
-                # print('tgt_dropped_ind: ', target_pad_dropped)
-
-                # print('pred words: ', pred_words)
-                pred_words_EOS_pos = list(map(lambda y: y.index('1') if '1' in y else -1, pred_words))
-                # print('position: ', pred_words_EOS_pos)
-                pred_pad_dropped = list(
-                    map(lambda x: x[1][:x[0] + 1], zip(pred_words_EOS_pos, pred_words)))
-                # print('pred_dropped: ', pred_pad_dropped)
                 
-                tgt_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], tgt_sentence)) for tgt_sentence in target_pad_dropped]
-#                 print('tgt_dropped_words: ', tgt_ind_word_map)
-                pred_ind_word_map = [list(map(lambda t: self.ind_word_map_dict[int(t)], pred_sentence)) for pred_sentence in pred_pad_dropped]
-#                 print('pred_dropped_words: ', pred_ind_word_map)
-                ind_to_words = {'tgt': [], 'pred': []}
-                ind_to_words['tgt'].append(tgt_ind_word_map)
-                ind_to_words['pred'].append(pred_ind_word_map)
-                
-                wer_vec = wer_vector(target_pad_dropped, pred_pad_dropped)
-                # print('wer_vec: ', wer_vec)
-                val_wer += (sum(wer_vec) / float(len(wer_vec)))
+
+                tgt_out = tgt[1:, :].type(torch.LongTensor).to(self.device)
+
 
                 loss = self.loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
                 losses += loss.item()
-            
-            return ind_to_words, losses / cnt, val_wer / cnt
+                # break
+            return losses / cnt
+
+
+    def greedy_decode(self, src, src_mask, max_len):
+
+        src = src.to(self.device)
+        src_mask = src_mask.to(self.device)
+
+        memory = self.model.encode(src, src_mask)
+        
+        ys = torch.ones(1, 1).fill_(self.sos_idx).type(torch.long).to(self.device)
+        for i in range(max_len-1):
+            # ys = ys.transpose(0,1)
+            # print('here in greedy')
+            memory = memory.to(self.device)
+        
+            tgt_mask = (generate_square_subsequent_mask(ys.size(0), self.device)
+                        .type(torch.bool))
+            # print('ind:', i)
+            out = self.model.decode(ys, memory, tgt_mask)
+            out = out.transpose(0,1)
+            # print('out shapes: ', out.shape, out[:, -1, :].shape, out[:, -1].shape)
+            prob = self.model.generator(out[:, -1])
+            # print('prob:', prob.shape)
+            _, next_word = torch.max(prob, dim=-1)
+            next_word = next_word.item()
+            # print('next', next_word)
+            ys = torch.cat([ys,
+                        torch.ones(1, 1).type(torch.long).fill_(next_word).to(self.device)], dim=0)
+               
+            if next_word == self.eos_idx:
+                # print('i: ', i)
+                break
+        # print(ys)
+        return ys
+
+    def inference(self):
+
+        self.model.eval()
+        with torch.no_grad():
+            val_wer = []
+            ind_to_words = {'tgt': [], 'pred': []}
+
+            for src, tgt in self.dataloaders['test_dataloader']:
+                src = src.to(self.device)
+                # src = src[(src.shape[0]//2): , :]
+                # src = src.transpose(0,1)
+                # print('src_shape:', src.shape)
+                tgt = tgt.transpose(0, 1).to(self.device)
+                # print('tgt_shape: ', tgt.shape)
+
+                num_tokens = src.shape[1] - self.manifest_model_args['kernel_size'] + 1
+                # print("num_tokens: ", num_tokens)
+                src_mask = (torch.zeros(num_tokens, num_tokens)).type(torch.bool)
+                pred_tokens = self.greedy_decode(src, src_mask,
+                                max_len=num_tokens + 5)
+                # print('pred_token: ', pred_tokens.shape)
+                # print('pred_token: ', pred_tokens)
+                pred_tokens = pred_tokens[1:,:]
+                pred_words = pred_tokens.transpose(0, 1).cpu().detach().numpy().astype(str).tolist()[0]
+                # print('preds: ', pred_words)
+                
+                target_words = tgt[1:,:]
+                # print('target: '. len(target_words))
+                target_words = target_words.transpose(0,1).cpu().detach().numpy().astype(str).tolist()[0]
+                # print('tgt: ', target_words)
+                # print('tgt_words: ', tgt)
+
+                # target_words_EOS_pos = list(map(lambda y: y.index(str(self.eos_idx)), target_words))
+                # # print('position: ', target_words_EOS_pos)
+                # target_pad_dropped = list(
+                #     map(lambda x: x[1][:x[0]+1], zip(target_words_EOS_pos, target_words)))
+                # # print('tgt_dropped: ', target_pad_dropped)
+                
+                # print('pred words: ', pred_words)
+                pred_words_EOS_pos = pred_words.index(str(self.eos_idx)) if str(self.eos_idx) in pred_words else -1
+                # print('position: ', pred_words_EOS_pos)
+                pred_words = pred_words[:pred_words_EOS_pos+1]
+                # print('pred_dropped: ', pred_words)
+                
+                
+                tgt_ind_word_map = list(map(lambda t: self.ind_word_map_dict[int(t)], target_words))
+                # print('tgt_dropped_words: ', tgt_ind_word_map)
+                pred_ind_word_map = list(map(lambda t: self.ind_word_map_dict[int(t)], pred_words))
+                # print('pred_dropped_words: ', pred_ind_word_map)
+                ind_to_words['tgt'].append(tgt_ind_word_map)
+                ind_to_words['pred'].append(pred_ind_word_map)
+                # break
+                
+
+            wer_vec = wer_vector(ind_to_words['tgt'], ind_to_words['pred'])
+            # print(wer_vec)
+            val_wer = sum(wer_vec)/len(wer_vec)
+            return ind_to_words, val_wer
+
 
     def train_and_evaluate(self):
         # wandb.init(project='ecog2txt-pytorch', entity='akamsali')
@@ -168,14 +237,15 @@ class SingleSubjectTrainer:
         # Magic
         # wandb.watch(self.model, log_freq=1)
         metrics = {}
-        tgt_pred_words = {}
+        words = {}
         loo = LeaveOneOut()
-        print('At LOO')
+        # print('At LOO')
         for ind, (train_split, val_split) in enumerate(loo.split(self.block_config)):
             print('ind: ', ind)
             keys = list(self.block_config.keys())
             # print(keys)
-            block_left_out = str(ind) + '_' + self.block_config[keys[ind]]['type']
+            # print("val_split", val_split)
+            block_left_out = keys[ind]
             print('left_out', block_left_out)
             self.dataloaders = {'train_dataloader':
                                     self.ecog.get_data_loader_for_blocks(split=train_split,
@@ -184,17 +254,20 @@ class SingleSubjectTrainer:
                                 'val_dataloader':
                                     self.ecog.get_data_loader_for_blocks(split=val_split,
                                                                          batch_size=self.manifest['training'][
-                                                                             'batch_size'])
+                                                                             'batch_size']),
+                                'test_dataloader':
+                                    self.ecog.get_data_loader_for_blocks(split=val_split,
+                                                                         batch_size=1)
                                 }
 
             reset_weights(self.model)
             # print(f"block_{ind+1}:")
 
             # best_val_loss = 10000
-            # output_dir = self.manifest['training']['output_dir']
+            output_dir = self.manifest['training']['output_dir']
 
-            best_val_loss = 100000
-            tgt_pred_words[block_left_out] = {'tgt': [], 'pred': []}
+            best_val_wer = 100000
+            words[block_left_out] = {'tgt': [], 'pred': []}
             metrics[block_left_out] = {'train_loss': [], 'val_loss': [], 'val_WER': []}
             
             for epoch in range(1, self.manifest['training']['num_epochs'] + 1):
@@ -202,24 +275,26 @@ class SingleSubjectTrainer:
                 train_loss = self.train_epoch()
                 end_time = time.time()
 
-                ind_to_words, val_loss, val_wer = self.evaluate()
+                val_loss = self.evaluate()
 
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    torch.save(self.model, '/scratch/gilbreth/akamsali/Research/Makin/outputs/best_models/best_model_' + block_left_out + '.pt') 
-                tgt_pred_words[block_left_out]['tgt'].append(ind_to_words['tgt'])
-                tgt_pred_words[block_left_out]['pred'].append(ind_to_words['pred'])
                 metrics[block_left_out]['train_loss'].append(train_loss)
                 metrics[block_left_out]['val_loss'].append(val_loss)
-                metrics[block_left_out]['val_WER'].append(val_wer)
-                
-                # wandb.log({'Train_loss': train_loss, 'Val_loss': val_loss, 'Val_WER': val_wer})
-                if not epoch%10: 
-                    print(f"epoch_{epoch}: Train_loss: {train_loss:.3f}, Val loss: {val_loss:.3f}, Val WER: {val_wer:.3f}, Epoch time = {(end_time - start_time):.3f}s")
-                #print('words: ', tgt_pred_words[block_left_out])
-                if not epoch%100:
-                    print('tgt: ', tgt_pred_words[block_left_out]['tgt'][-1])
-                    print('pred: ', tgt_pred_words[block_left_out]['pred'][-1])
+                 
+                if not epoch%10:
+                    print(f"epoch_{epoch}: Train_loss: {train_loss:.3f},Val loss: {val_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
+                    inf_start = time.time()
+                    ind_to_words, val_wer = self.inference()
+                    inf_end = time.time()
+                    print(f"Val WER: {val_wer:.3f}, Inf_time={(inf_end-inf_start):.3f}s")
+                    metrics[block_left_out]['val_WER'].append(val_wer)
+                    words[block_left_out]['tgt'].append(ind_to_words['tgt'])
+                    words[block_left_out]['pred'].append(ind_to_words['pred'])
 
+                    if val_wer < best_val_wer:
+                        best_val_wer = val_wer
+                        torch.save(self.model, output_dir + "/best_model" + block_left_out + '.pt') 
+                    
+                # wandb.log({'Train_loss': train_loss, 'Val_loss': val_loss, 'Val_WER': val_wer})
+                
             # wandb.log(metrics[block_left_out])
-        return tgt_pred_words, metrics
+        return words, metrics
